@@ -66,9 +66,11 @@ th,td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--line);font
 th{color:var(--muted);font-weight:600;font-size:.85rem}
 td:first-child,th:first-child{text-align:left}
 td.z{color:var(--muted)}
+td small{color:var(--muted);font-weight:400}
 td.l{background:var(--warn-bg);color:var(--warn);font-weight:700}
 tfoot td{font-weight:700;border-bottom:0}
 .item.nuevo{background:color-mix(in srgb,var(--accent) 16%,transparent);border-radius:10px;padding-left:8px;padding-right:8px}
+.tallas{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .sale{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:.9rem}
 .sale:first-child{border-top:0}
 .sale small{color:var(--muted)}
@@ -108,44 +110,35 @@ tfoot td{font-weight:700;border-bottom:0}
   </section>
 
   <section>
-    <h2>Diseños</h2>
-    <div class="fg">
-      <label class="full">Nombre del diseño
-        <input id="dNombre" placeholder="Ej: Calavera, Anime, Logo Marking" autocomplete="off">
-      </label>
-      <button class="primary full" type="button" id="btnDiseno">Guardar diseño</button>
-    </div>
-    <p class="msg" id="dMsg" role="status"></p>
-    <div id="listaDisenos"></div>
-  </section>
-
-  <section>
     <h2>Agregar camisetas</h2>
     <div class="fg" id="form">
-      <label>Talla
-        <select id="talla">
-          <option>XS</option><option>S</option><option selected>M</option>
-          <option>L</option><option>XL</option><option>XXL</option>
-        </select>
-      </label>
-      <label>Cantidad
-        <input id="cantidad" type="number" min="1" value="1" inputmode="numeric" required>
+      <label class="full">Diseño
+        <input id="diseno" list="listaDis" placeholder="Ej: Calavera, Anime, Logo Marking" autocomplete="off">
+        <datalist id="listaDis"></datalist>
       </label>
       <label class="full">Color
-        <input id="color" list="colores" placeholder="Ej: Negro, Blanco, Azul" required autocomplete="off">
+        <input id="color" list="colores" placeholder="Ej: Negro, Blanco, Azul" autocomplete="off">
         <datalist id="colores">
           <option>Negro</option><option>Blanco</option><option>Gris</option><option>Azul</option>
           <option>Rojo</option><option>Verde</option><option>Amarillo</option><option>Naranja</option>
           <option>Rosado</option><option>Morado</option><option>Beige</option><option>Café</option>
         </datalist>
       </label>
-      <label class="full">Diseño
-        <select id="diseno"></select>
-      </label>
+      <div class="full">
+        <div class="hint" style="margin:0 0 6px">Cantidad por talla (deja en blanco las que no agregas)</div>
+        <div class="tallas">
+        <label>XS<input id="q-XS" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        <label>S<input id="q-S" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        <label>M<input id="q-M" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        <label>L<input id="q-L" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        <label>XL<input id="q-XL" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        <label>XXL<input id="q-XXL" type="number" min="0" inputmode="numeric" placeholder="0"></label>
+        </div>
+      </div>
       <button class="primary full" type="button" id="btnAgregar">Agregar al inventario</button>
     </div>
     <p class="msg" id="aMsg" role="status"></p>
-    <p class="hint">Si la talla y el color ya existen, la cantidad se suma.</p>
+    <p class="hint">Si el diseño, color y talla ya existen, la cantidad se suma.</p>
   </section>
 
   <section>
@@ -175,19 +168,17 @@ tfoot td{font-weight:700;border-bottom:0}
 <script>
 const KEY = "camisetas_v1";
 const KEY_V = "camisetas_ventas_v1";
-const KEY_D = "camisetas_disenos_v1";
 const ORDEN = ["XS","S","M","L","XL","XXL"];
 const HEX = {
   negro:"#111111", blanco:"#FFFFFF", gris:"#8A8F98", azul:"#2563EB", rojo:"#DC2626",
   verde:"#16A34A", amarillo:"#FACC15", naranja:"#F97316", rosado:"#F472B6", rosa:"#F472B6",
   morado:"#7C3AED", beige:"#D8C3A5", "café":"#6B4423", cafe:"#6B4423", marron:"#6B4423",
-  "marrón":"#6B4423", vinotinto:"#7F1D1D", celeste:"#7DD3FC", turquesa:"#14B8A6"
+  "marrón":"#6B4423", negra:"#111111", blanca:"#FFFFFF", roja:"#DC2626", amarilla:"#FACC15", rosada:"#F472B6", morada:"#7C3AED", vinotinto:"#7F1D1D", celeste:"#7DD3FC", turquesa:"#14B8A6"
 };
 
 let items = load(KEY);
 let ventas = load(KEY_V);
-let ultimo = null;
-let disenos = load(KEY_D);
+let ultimos = [];
 
 function load(k){
   try { return JSON.parse(localStorage.getItem(k)) || []; }
@@ -197,7 +188,6 @@ function save(){
   try {
     localStorage.setItem(KEY, JSON.stringify(items));
     localStorage.setItem(KEY_V, JSON.stringify(ventas));
-    localStorage.setItem(KEY_D, JSON.stringify(disenos));
   } catch(e){ alert("No se pudo guardar en este navegador."); }
 }
 const norm = s => s.trim().toLowerCase();
@@ -206,24 +196,30 @@ const cap = s => s.trim().charAt(0).toUpperCase() + s.trim().slice(1).toLowerCas
 const $ = id => document.getElementById(id);
 const byTalla = (a,b) => ORDEN.indexOf(a)-ORDEN.indexOf(b);
 
-function add(talla, color, n, diseno){
+function add(lineas, color, diseno){
   diseno = diseno || "";
-  let it = items.find(i => i.talla === talla && norm(i.color) === norm(color) && (i.diseno||"") === diseno);
-  if (it) it.cantidad += n;
-  else { it = { id: Date.now() + Math.random(), talla, color: cap(color), diseno, cantidad: n }; items.push(it); }
+  const tocados = [];
+  lineas.forEach(([talla, n]) => {
+    let it = items.find(i => i.talla === talla && norm(i.color) === norm(color) && (i.diseno||"") === diseno);
+    if (it) it.cantidad += n;
+    else { it = { id: Date.now() + Math.random(), talla, color: cap(color), diseno, cantidad: n }; items.push(it); }
+    tocados.push(it);
+  });
   $("fTalla").value = ""; $("fColor").value = "";
-  ultimo = it.id;
+  ultimos = tocados.map(i => i.id);
   save(); render();
+  const total = lineas.reduce((s, l) => s + l[1], 0);
   const m = $("aMsg");
   m.className = "msg ok";
-  m.textContent = "Agregadas " + n + " " + it.color + (it.diseno ? " (" + it.diseno + ")" : "") + " talla " + it.talla + ". Ahora hay " + it.cantidad + ".";
+  m.textContent = "Agregadas " + total + " " + cap(color) + (diseno ? " (" + diseno + ")" : "") + ": " + lineas.map(l => l[1] + " talla " + l[0]).join(", ") + ".";
   const el = document.querySelector(".item.nuevo");
   if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
   setTimeout(() => {
-    ultimo = null;
+    ultimos = [];
     document.querySelectorAll(".item.nuevo").forEach(e => e.classList.remove("nuevo"));
   }, 3000);
 }
+
 function change(id, delta){
   const it = items.find(i => i.id === id);
   if (!it) return;
@@ -289,25 +285,30 @@ function renderMatriz(){
   const box = $("matriz");
   if (!items.length){ box.innerHTML = '<div class="empty">Sin existencias todavía.</div>'; return; }
   const tallas = ORDEN.filter(t => items.some(i => i.talla === t));
-  const colores = [...new Set(items.map(i => i.color))].sort();
-  let h = "<table><thead><tr><th>Color</th>" + tallas.map(t=>`<th>${t}</th>`).join("") + "<th>Total</th></tr></thead><tbody>";
-  colores.forEach(c => {
+  const grupos = [];
+  items.forEach(i => {
+    const d = i.diseno || "";
+    let g = grupos.find(x => x.color === i.color && x.diseno === d);
+    if (!g){ g = { color: i.color, diseno: d, q: {} }; grupos.push(g); }
+    g.q[i.talla] = (g.q[i.talla] || 0) + i.cantidad;
+  });
+  grupos.sort((a,b) => a.color.localeCompare(b.color) || a.diseno.localeCompare(b.diseno));
+  let h = "<table><thead><tr><th>Color y diseño</th>" + tallas.map(t => `<th>${t}</th>`).join("") + "<th>Total</th></tr></thead><tbody>";
+  grupos.forEach(g => {
     let tot = 0;
-    h += `<tr><td></td>`;
+    h += `<tr><td><b>${esc(g.color)}</b><br><small>${g.diseno ? esc(g.diseno) : "Sin diseño"}</small></td>`;
     tallas.forEach(t => {
-      const its = items.filter(i => i.color === c && i.talla === t);
-      const it = its.length > 0;
-      const q = its.reduce((s,i)=>s+i.cantidad,0); tot += q;
-      const cls = !it ? "z" : (q <= 2 ? "l" : "");
-      h += `<td class="${cls}">${it ? q : "·"}</td>`;
+      const has = g.q[t] !== undefined;
+      const q = g.q[t] || 0; tot += q;
+      const cls = !has ? "z" : (q <= 2 ? "l" : "");
+      h += `<td class="${cls}">${has ? q : "·"}</td>`;
     });
     h += `<td><b>${tot}</b></td></tr>`;
   });
   h += "</tbody><tfoot><tr><td>Total</td>";
-  tallas.forEach(t => { h += `<td>${items.filter(i=>i.talla===t).reduce((s,i)=>s+i.cantidad,0)}</td>`; });
-  h += `<td>${items.reduce((s,i)=>s+i.cantidad,0)}</td></tr></tfoot></table>`;
+  tallas.forEach(t => { h += `<td>${items.filter(i => i.talla === t).reduce((s,i) => s + i.cantidad, 0)}</td>`; });
+  h += `<td>${items.reduce((s,i) => s + i.cantidad, 0)}</td></tr></tfoot></table>`;
   box.innerHTML = h;
-  box.querySelectorAll("tbody tr").forEach((tr,idx) => { tr.firstChild.textContent = colores[idx]; });
 }
 
 function renderHistorial(){
@@ -326,35 +327,8 @@ function renderHistorial(){
 }
 
 function renderDisenos(){
-  const sel = $("diseno"), prev = sel.value;
-  sel.innerHTML = '<option value="">Sin diseño</option>' + disenos.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("");
-  if (disenos.includes(prev)) sel.value = prev;
-  const box = $("listaDisenos");
-  if (!disenos.length){ box.innerHTML = '<div class="empty">Aún no tienes diseños. Escribe el primero arriba.</div>'; return; }
-  box.innerHTML = "";
-  disenos.forEach(d => {
-    const n = items.filter(i => (i.diseno||"") === d).reduce((s,i)=>s+i.cantidad,0);
-    const row = document.createElement("div");
-    row.className = "sale";
-    row.innerHTML = '<div><b></b><br><small></small></div><button type="button" class="danger">Quitar</button>';
-    row.querySelector("b").textContent = d;
-    row.querySelector("small").textContent = n + (n===1 ? " camiseta" : " camisetas");
-    row.querySelector("button").onclick = () => quitarDiseno(d);
-    box.appendChild(row);
-  });
-}
-function agregarDiseno(){
-  const inp = $("dNombre"), nombre = inp.value.trim(), m = $("dMsg");
-  if (!nombre){ m.className = "msg err"; m.textContent = "Escribe el nombre del diseño."; return; }
-  if (disenos.some(d => norm(d) === norm(nombre))){ m.className = "msg err"; m.textContent = "Ese diseño ya existe."; return; }
-  disenos.push(nombre); disenos.sort((a,b) => a.localeCompare(b));
-  save(); inp.value = ""; render();
-  $("diseno").value = nombre;
-  m.className = "msg ok"; m.textContent = "Diseño guardado: " + nombre + ".";
-}
-function quitarDiseno(d){
-  if (!confirm("¿Quitar el diseño " + d + " de la lista? Las camisetas que ya lo tienen lo conservan.")) return;
-  disenos = disenos.filter(x => x !== d); save(); render();
+  const ds = [...new Set(items.map(i => i.diseno).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  $("listaDis").innerHTML = ds.map(d => `<option value="${esc(d)}">`).join("");
 }
 
 function render(){
@@ -377,7 +351,7 @@ function render(){
   box.innerHTML = "";
   vis.forEach(i => {
     const row = document.createElement("div");
-    row.className = "item" + (i.id === ultimo ? " nuevo" : "");
+    row.className = "item" + (ultimos.includes(i.id) ? " nuevo" : "");
     const hex = HEX[norm(i.color)] || "#B8C0CC";
     row.innerHTML = `
       <div class="dot" style="background:${hex}"></div>
@@ -399,15 +373,16 @@ function render(){
 
 function onAgregar(){
   const color = $("color").value;
-  const n = parseInt($("cantidad").value, 10);
-  if (!color.trim() || !(n > 0)){
+  const lineas = ORDEN.map(t => [t, parseInt($("q-" + t).value, 10)]).filter(l => l[1] > 0);
+  if (!color.trim() || !lineas.length){
     const m = $("aMsg");
     m.className = "msg err";
-    m.textContent = "Escribe un color y una cantidad mayor a 0.";
+    m.textContent = "Escribe un color y la cantidad de al menos una talla.";
     return;
   }
-  add($("talla").value, color, n, $("diseno").value);
-  $("color").value = ""; $("cantidad").value = 1;
+  add(lineas, color, $("diseno").value.trim());
+  ORDEN.forEach(t => { $("q-" + t).value = ""; });
+  $("color").value = "";
 }
 function onVender(){
   const n = parseInt($("vCant").value, 10);
@@ -422,15 +397,14 @@ function onVender(){
 }
 $("btnAgregar").onclick = onAgregar;
 $("btnVender").onclick = onVender;
-$("btnDiseno").onclick = agregarDiseno;
-[["color", onAgregar], ["cantidad", onAgregar], ["vCant", onVender], ["dNombre", agregarDiseno]].forEach(([id, fn]) =>
+[["color", onAgregar], ["diseno", onAgregar], ["vCant", onVender]].forEach(([id, fn]) =>
   $(id).addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); fn(); } })
 );
 $("fTalla").onchange = render;
 $("fColor").onchange = render;
 
 $("exportar").onclick = () => {
-  const blob = new Blob([JSON.stringify({ items, ventas, disenos }, null, 2)], {type:"application/json"});
+  const blob = new Blob([JSON.stringify({ items, ventas }, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "camisetas-" + new Date().toISOString().slice(0,10) + ".json";
@@ -450,8 +424,6 @@ $("archivo").onchange = e => {
         items = inItems.filter(d => d && d.talla && d.color && Number.isFinite(d.cantidad))
                        .map(d => ({ id: d.id || Date.now()+Math.random(), talla:d.talla, color:d.color, diseno:d.diseno || "", cantidad:d.cantidad }));
         ventas = inVentas.filter(v => v && v.talla && v.color && Number.isFinite(v.cantidad) && v.fecha);
-        disenos = Array.isArray(data.disenos) ? data.disenos.filter(x => typeof x === "string")
-                  : [...new Set(items.map(i => i.diseno).filter(Boolean))];
         save(); render();
       }
     } catch(err){ alert("El archivo no es una copia válida."); }
@@ -460,7 +432,23 @@ $("archivo").onchange = e => {
   r.readAsText(f);
 };
 
+// Carga inicial: solo si este navegador aún no tiene datos
+const KEY_SEED = "camisetas_seed_v1";
+const SEED = [["Azul", "L", "north face", 3], ["Azul", "XL", "all stars", 2], ["Azul", "XL", "rosas", 1], ["Azul", "XL", "amiri", 1], ["Azul", "XL", "euphoric", 2], ["Blanco", "M", "Dolce Gabanna", 3], ["Blanco", "M", "vanguardia", 1], ["Blanco", "M", "rosas", 2], ["Blanco", "M", "diesel", 1], ["Blanco", "M", "amiri", 1], ["Blanco", "M", "versace", 2], ["Blanco", "M", "euphoric", 5], ["Blanco", "XL", "north face", 6], ["Cafe", "XL", "Dolce Gabanna", 1], ["Gris", "L", "Dolce Gabanna", 2], ["Gris", "L", "north face", 6], ["Gris", "XL", "rosas", 1], ["Gris", "XL", "amiri", 2], ["Gris", "XL", "euphoric", 2], ["Gris", "XXL", "vanguardia", 1], ["Gris", "XXL", "versace", 2], ["Negra", "L", "Dolce Gabanna", 6], ["Negra", "XL", "Dolce Gabanna", 8], ["Negro", "XL", "north face", 4], ["Negro", "XL", "vanguardia", 2], ["Negro", "XL", "diesel", 1], ["Negro", "XL", "amiri", 2], ["Negro", "XL", "versace", 2], ["Negro", "XL", "euphoric", 1], ["Negro", "XXL", "Dolce Gabanna", 2], ["Negro", "XXL", "north face", 1], ["Negro", "XXL", "rosas", 1], ["Negro", "XXL", "euphoric", 1], ["Verde", "L", "north face", 2], ["Verde", "XXL", "vanguardia", 1]];
+(function cargarInicial(){
+  let hecho = false;
+  try { hecho = !!localStorage.getItem(KEY_SEED); } catch(e){}
+  if (items.length || hecho){
+    try { localStorage.setItem(KEY_SEED, "1"); } catch(e){}
+    return;
+  }
+  items = SEED.map((r, k) => ({ id: Date.now() + k + Math.random(), color: r[0], talla: r[1], diseno: r[2], cantidad: r[3] }));
+  save();
+  try { localStorage.setItem(KEY_SEED, "1"); } catch(e){}
+})();
+
 render();
 </script>
 </body>
 </html>
+
